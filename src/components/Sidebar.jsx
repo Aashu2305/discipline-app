@@ -46,6 +46,9 @@ const Sidebar = ({
 }) => {
   const [showLineChart, setShowLineChart] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // --- ADDED ONLY THIS FOR YOUR CREDIT ---
+  const [showCredit, setShowCredit] = useState(false);
 
   // --- ONE-TIME INTRO NOTICE LOGIC (10 SEC TOTAL) ---
   useEffect(() => {
@@ -169,9 +172,23 @@ const Sidebar = ({
     <div className="sidebar">
       <div className="brand">
         <h1>TrackDaily.com</h1>
-        <div className="user-profile">
-          <User size={17} />
-          <span>User</span>
+        {/* UPDATED ONLY THIS PART FOR THE AASHU CREDIT */}
+        <div className="user-profile-container">
+          <div 
+            className="user-profile" 
+            onClick={() => {
+              setShowCredit(true);
+              setTimeout(() => setShowCredit(false), 3000);
+            }}
+          >
+            <User size={17} />
+            <span>{showCredit ? "AASHU" : "User"}</span>
+          </div>
+          {showCredit && (
+            <div className="designer-tag">
+              Designed by Aashu 🔥
+            </div>
+          )}
         </div>
       </div>
       <div className="level-card">

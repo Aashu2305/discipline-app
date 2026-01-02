@@ -32,6 +32,13 @@
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
+/* ADDED THIS FOR THE CREDIT ALIGNMENT */
+.user-profile-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .user-profile {
   background: rgba(39, 39, 42, 0.6);
   padding: 6px 12px;
@@ -57,6 +64,28 @@
 
 .user-profile svg {
   color: #fbbf24;
+}
+
+/* ADDED THIS FOR THE TAG POPUP */
+.designer-tag {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: #fbbf24;
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  z-index: 100;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* LEVEL CARD */
@@ -114,8 +143,6 @@
   font-weight: 800;
 }
 
-/* ... Keep top sections the same ... */
-
 .cal-day {
   width: 100%;
   aspect-ratio: 1/1;
@@ -126,23 +153,20 @@
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  color: #a1a1aa; /* Future text: Regular */
-  background: #18181b; /* Future bg: Solid Zinc */
+  color: #a1a1aa;
+  background: #18181b;
   transition: all 0.2s ease;
-  border: 1px solid #27272a; /* Subtle border for future slots */
+  border: 1px solid #27272a;
   position: relative;
 }
 
-/* PAST MISSED DAYS STYLE (FADED & DASHED) */
 .cal-day.cal-miss {
   background: transparent !important;
   color: #3f3f46 !important;
   border: 1px dashed #27272a !important;
-  text-decoration: none; /* Removed line-through as dashed border is enough */
   opacity: 0.5;
 }
 
-/* SHADING LOGIC COLORS (PAST & TODAY COMPLETED) */
 .cal-day.cal-low { background: #064e3b !important; color: #10b981 !important; border: none !important; }
 .cal-day.cal-med { background: #0fbd83 !important; color: #000 !important; border: none !important; }
 .cal-day.cal-high { 
@@ -153,7 +177,6 @@
   border: none !important; 
 }
 
-/* SELECTED / TODAY PULSE */
 .cal-day.selected {
   border: 2px solid #fbbf24 !important;
   transform: scale(1.1);
@@ -165,17 +188,15 @@
   background: transparent !important;
   border: none !important;
   cursor: default;
-  pointer-events: none; /* Can't click empty spaces */
+  pointer-events: none;
 }
 
-/* ... Keep bottom sections the same ... */
 @keyframes todayPulse {
   0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
   70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
   100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
 }
 
-/* CHARTS */
 .chart-container {
   background: #09090b;
   border: 1px solid #27272a;
@@ -185,7 +206,6 @@
   overflow: visible; 
 }
 
-/* UTILITY DOCK */
 .utility-bar-container {
   margin-top: auto;
   padding: 1rem 0;
