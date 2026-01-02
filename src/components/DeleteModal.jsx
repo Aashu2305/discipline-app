@@ -1,50 +1,79 @@
-import React from 'react';
-import { Trash2, CalendarOff, X } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState } from 'react';
+import { AlertTriangle, X, Trash2, CalendarX, History, RotateCcw } from 'lucide-react';
+import './DeleteModal.css';
 
-const DeleteModal = ({ isOpen, onClose, onDeleteToday, onDeleteAll, date }) => {
+const DeleteModal = ({ 
+  isOpen, 
+  onClose, 
+  onDeleteToday,    // Prop 1
+  onDeleteSchedule, // Prop 2
+  onDeleteForever   // Prop 3
+}) => {
+  const [includePast, setIncludePast] = useState(false);
+
+  // CRASH PROTECTION: If modal isn't open, or props are missing, don't render.
   if (!isOpen) return null;
-
-  const dayName = format(date, 'EEEE'); // e.g., "Monday"
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '450px' }}>
+      <div className="tech-modal-box">
         <div className="modal-header">
-          <h3>Remove Goal</h3>
-          <button onClick={onClose}><X size={20}/></button>
+          <div className="header-title">
+            <AlertTriangle size={18} color="var(--accent)" />
+            <span>PROTOCOL_TERMINATION_PROTOCOL</span>
+          </div>
+          <button className="close-x" onClick={onClose}><X size={18} /></button>
         </div>
-        
-        <p style={{ color: '#a1a1aa', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-          Do you want to remove this goal from <strong>{dayName}s</strong> only, or delete it completely from your history?
-        </p>
 
-        <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
-          {/* OPTION 1: Remove Only From This Day */}
-          <button 
-            onClick={onDeleteToday}
-            className="day-btn" 
-            style={{ 
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-              padding: '12px', border: '1px solid #27272a', background: '#09090b', color: '#fff' 
-            }}
-          >
-            <CalendarOff size={16} />
-            <span>Remove from {dayName}s only</span>
-          </button>
+        <div className="modal-body">
+          {/* SYSTEM OVERRIDE TOGGLE (The Past History Switch) */}
+          <div className="history-toggle-box">
+            <div className="toggle-label">
+                <RotateCcw size={14} color={includePast ? "var(--accent)" : "#52525b"} />
+                <span>WIPE_SYSTEM_HISTORY?</span>
+            </div>
+            <label className="switch">
+              <input 
+                type="checkbox" 
+                checked={includePast} 
+                onChange={() => setIncludePast(!includePast)} 
+              />
+              <span className="slider round"></span>
+            </label>
+          </div>
 
-          {/* OPTION 2: Delete Forever */}
-          <button 
-            onClick={onDeleteAll}
-            className="save-btn" 
-            style={{ 
-              background: '#ef4444', color: 'white', marginTop: '5px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-            }}
-          >
-            <Trash2 size={16} />
-            <span>Delete Forever</span>
-          </button>
+          <div className="delete-options-stack">
+            {/* OPTION 1: TODAY ONLY */}
+            <button className="delete-opt-btn" onClick={() => onDeleteToday && onDeleteToday()}>
+              <div className="opt-icon-wrap"><CalendarX size={18} /></div>
+              <div className="opt-text">
+                <span className="opt-title">REMOVE_FOR_TODAY</span>
+                <span className="opt-sub">Hide only for this specific cycle.</span>
+              </div>
+            </button>
+
+            {/* OPTION 2: SPECIFIC WEEKDAY */}
+            <button className="delete-opt-btn" onClick={() => onDeleteSchedule && onDeleteSchedule(includePast)}>
+              <div className="opt-icon-wrap"><History size={18} /></div>
+              <div className="opt-text">
+                <span className="opt-title">REMOVE_FROM_WEEKLY_CYCLE</span>
+                <span className="opt-sub">Delete from every recurring day of the week.</span>
+              </div>
+            </button>
+
+            {/* OPTION 3: FOREVER */}
+            <button className="delete-opt-btn danger" onClick={() => onDeleteForever && onDeleteForever(includePast)}>
+              <div className="opt-icon-wrap"><Trash2 size={18} /></div>
+              <div className="opt-text">
+                <span className="opt-title">TERMINATE_PERMANENTLY</span>
+                <span className="opt-sub">Wipe protocol from the entire database.</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="cancel-btn" onClick={onClose}>ABORT_TERMINATION</button>
         </div>
       </div>
     </div>

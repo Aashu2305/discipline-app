@@ -1,24 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, CalendarDays, Clock, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react'; 
+import { X, Calendar, CalendarDays, Clock, Plus, History } from 'lucide-react';
 import { format } from 'date-fns';
+import './Modal.css';
 
 const AddModal = ({ isOpen, onClose, onAdd }) => {
   const [habitInput, setHabitInput] = useState("");
   const [mode, setMode] = useState('weekly'); // 'weekly', 'monthly', 'onetime'
+  const [applyToPast, setApplyToPast] = useState(false); // NEW: History Toggle State
   
   // Selection States
-  const [selectedDays, setSelectedDays] = useState([0,1,2,3,4,5,6]); // Weekly
-  const [selectedDates, setSelectedDates] = useState([1]); // Monthly
-  const [specificDates, setSpecificDates] = useState([]); // One-Time (YYYY-MM-DD strings)
-  const [tempDate, setTempDate] = useState(""); // For the date picker input
+  const [selectedDays, setSelectedDays] = useState([0,1,2,3,4,5,6]); 
+  const [selectedDates, setSelectedDates] = useState([1]); 
+  const [specificDates, setSpecificDates] = useState([]); 
+  const [tempDate, setTempDate] = useState(""); 
 
   useEffect(() => {
     if (isOpen) {
       setHabitInput("");
       setMode('weekly');
+      setApplyToPast(false); // Default to FALSE to keep past clean
       setSelectedDays([0,1,2,3,4,5,6]);
       setSelectedDates([1]);
-      setSpecificDates([format(new Date(), 'yyyy-MM-dd')]); // Default to today
+      setSpecificDates([format(new Date(), 'yyyy-MM-dd')]);
       setTempDate(format(new Date(), 'yyyy-MM-dd'));
     }
   }, [isOpen]);
@@ -29,10 +32,8 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
     e.preventDefault();
     if (!habitInput.trim()) return;
     
-    // Split input by new lines to get multiple names
     const names = habitInput.split('\n').filter(n => n.trim().length > 0);
 
-    // Prepare configuration based on mode
     const config = {
       type: mode,
       frequency: mode === 'weekly' ? (selectedDays.length === 0 ? [0,1,2,3,4,5,6] : selectedDays) : [],
@@ -40,8 +41,8 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
       specificDates: mode === 'onetime' ? specificDates : []
     };
 
-    // Send array of names + config
-    onAdd(names, config);
+    // We pass the applyToPast flag as the 3rd argument to our App.jsx function
+    onAdd(names, config, applyToPast);
     onClose();
   };
 
@@ -116,7 +117,7 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
             ))}
           </div>
           
-          {/* OPTION A: WEEKLY */}
+          {/* OPTION SELECTIONS REMAIN SAME */}
           {mode === 'weekly' && (
             <div className="day-selector">
               {['S','M','T','W','T','F','S'].map((day, idx) => (
@@ -131,7 +132,6 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
             </div>
           )}
 
-          {/* OPTION B: MONTHLY */}
           {mode === 'monthly' && (
             <div style={{ marginBottom: '1rem', maxHeight: '150px', overflowY: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
@@ -151,7 +151,6 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
             </div>
           )}
 
-          {/* OPTION C: ONE-TIME (Specific Dates) */}
           {mode === 'onetime' && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -178,6 +177,26 @@ const AddModal = ({ isOpen, onClose, onAdd }) => {
               </div>
             </div>
           )}
+
+          {/* --- THE HISTORY TOGGLE SECTION --- */}
+          <div style={{ 
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px 15px', background: 'rgba(251, 191, 36, 0.05)',
+            border: '1px solid rgba(251, 191, 36, 0.2)', borderRadius: '8px', marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: '800', color: applyToPast ? '#fff' : '#71717a' }}>
+                <History size={14} color={applyToPast ? "#fbbf24" : "#52525b"} />
+                <span>APPLY_TO_PAST_HISTORY?</span>
+            </div>
+            <label className="switch">
+              <input 
+                type="checkbox" 
+                checked={applyToPast} 
+                onChange={() => setApplyToPast(!applyToPast)} 
+              />
+              <span className="slider round"></span>
+            </label>
+          </div>
 
           <button type="submit" className="save-btn">Create {habitInput.split('\n').filter(n=>n.trim()).length > 1 ? 'Goals' : 'Goal'}</button>
         </form>

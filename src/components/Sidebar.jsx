@@ -1,194 +1,310 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, subDays, subMonths, addMonths } from 'date-fns';
-import { User, Trophy, ChevronLeft, ChevronRight, Activity, Download, Upload, Bell, List, PenTool, Clock, BarChart2 } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  User,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Upload,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  getDay,
+  addMonths,
+  subMonths,
+  subDays,
+} from "date-fns";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { exportUserData, importUserData } from "../utils/dataPersistence";
+import "./Sidebar.css";
 
-const QUOTES = [
-  "Discipline is doing what needs to be done, even if you don't want to do it.",
-  "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
-  "The pain of discipline is far less than the pain of regret.",
-  "Don't stop when you're tired. Stop when you're done."
-];
+const Sidebar = ({
+  xp,
+  habits,
+  notes,
+  reminders,
+  selectedDate,
+  setSelectedDate,
+  isMuted,
+  toggleMute,
+  onImportData,
+}) => {
+  const [showLineChart, setShowLineChart] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-const Sidebar = ({ xp, habits, selectedDate, setSelectedDate, setView, currentView }) => {
-  const [quoteIndex, setQuoteIndex] = useState(0);
-  const [activeGraph, setActiveGraph] = useState(0); // 0 = Line, 1 = Bar
-  const fileInputRef = useRef(null);
-
+  // --- ONE-TIME INTRO NOTICE LOGIC (10 SEC TOTAL) ---
   useEffect(() => {
-    const interval = setInterval(() => setQuoteIndex(prev => (prev + 1) % QUOTES.length), 40000); 
-    return () => clearInterval(interval);
-  }, []);
+    // Flip to Bar Chart at 5 seconds
+    const flipToBar = setTimeout(() => {
+      setShowLineChart(false);
+    }, 5000);
 
-  useEffect(() => {
-    const interval = setInterval(() => setActiveGraph(prev => (prev === 0 ? 1 : 0)), 5000);
-    return () => clearInterval(interval);
-  }, []);
+    // Flip back to Line Chart at 10 seconds
+    const flipToLine = setTimeout(() => {
+      setShowLineChart(true);
+    }, 10000);
 
-  const level = Math.floor(xp / 100) + 1;
+    return () => {
+      clearTimeout(flipToBar);
+      clearTimeout(flipToLine);
+    };
+  }, []); 
 
-  // --- CHART DATA ---
-  const chartData = [];
-  const today = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const date = subDays(today, i);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    let count = 0;
-    habits.forEach(h => { if (h.completedDates[dateStr]) count++; });
-    chartData.push({ day: format(date, 'EEE'), count });
-  }
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  // --- CALENDAR RENDERER ---
-  const renderCalendar = () => {
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
+  // 2. PRECISION DATA FIX: Only count habits scheduled for that specific day
+  const last7Days = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = subDays(new Date(), 6 - i);
+      const dateStr = format(d, "yyyy-MM-dd");
+      const dayOfWeek = getDay(d);
+      const dayOfMonth = parseInt(format(d, "d"));
+
+      const completedCount = habits.filter((h) => {
+        const isDone = h.completedDates && h.completedDates[dateStr] === true;
+        if (!isDone) return false;
+
+        const isHidden = h.hiddenDates?.includes(dateStr);
+        if (isHidden) return false;
+
+        if (h.type === "onetime") return h.specificDates?.includes(dateStr);
+        if (h.type === "monthly") return h.targetDates?.includes(dayOfMonth);
+        if (h.type === "weekly") return h.frequency?.includes(dayOfWeek);
+
+        return true; 
+      }).length;
+
+      return {
+        name: format(d, "EEE"),
+        completed: completedCount,
+      };
+    });
+  }, [habits]);
+
+  const level = Math.floor(xp / 100);
+  const progress = xp % 100;
+
+  const calendarGrid = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const startDay = getDay(monthStart);
     const emptySlots = Array(startDay).fill(null);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     return (
       <div className="calendar-grid">
-        {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} className="cal-header">{d}</div>)}
-        {emptySlots.map((_, i) => <div key={`empty-${i}`} className="cal-day empty"></div>)}
-        {daysInMonth.map(date => {
-          const dateStr = format(date, 'yyyy-MM-dd');
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <div key={i} className="cal-header">
+            {d}
+          </div>
+        ))}
+        {emptySlots.map((_, i) => (
+          <div key={`empty-${i}`} className="cal-day empty"></div>
+        ))}
+        {daysInMonth.map((date) => {
+          const dateStr = format(date, "yyyy-MM-dd");
           const isSelected = isSameDay(date, selectedDate);
-          
-          let completedCount = 0;
-          habits.forEach(h => { if (h.completedDates[dateStr]) completedCount++; });
-          
+          const dayOfWeek = getDay(date);
+          const dayOfMonth = parseInt(format(date, "d"));
+          const isPastMissed = date < today && !isSameDay(date, today);
+
+          const scheduledHabits = habits.filter((h) => {
+            if (h.hiddenDates?.includes(dateStr)) return false;
+            if (h.type === "onetime") return h.specificDates?.includes(dateStr);
+            if (h.type === "monthly")
+              return h.targetDates?.includes(dayOfMonth);
+            if (h.type === "weekly") return h.frequency?.includes(dayOfWeek);
+            return true;
+          });
+
+          const totalScheduled = scheduledHabits.length;
+          const completedCount = scheduledHabits.filter(
+            (h) => h.completedDates && h.completedDates[dateStr]
+          ).length;
+
           let bgClass = "";
-          if (completedCount > 0) {
-             if (completedCount < 3) bgClass = "cal-low";
-             else if (completedCount < 5) bgClass = "cal-med";
-             else bgClass = "cal-high";
-          } else if (habits.length > 0) {
-             if (date < new Date() && !isSameDay(date, new Date())) bgClass = "cal-miss";
+          if (totalScheduled > 0) {
+            const percentage = (completedCount / totalScheduled) * 100;
+            if (completedCount === 0 && isPastMissed) bgClass = "cal-miss";
+            else if (percentage > 0 && percentage < 40) bgClass = "cal-low";
+            else if (percentage >= 40 && percentage < 100) bgClass = "cal-med";
+            else if (percentage === 100) bgClass = "cal-high";
+          } else if (isPastMissed) {
+            bgClass = "cal-miss";
           }
 
           return (
-            <div key={dateStr} className={`cal-day ${bgClass} ${isSelected ? 'selected' : ''}`} onClick={() => setSelectedDate(date)}>
-              {format(date, 'd')}
+            <div
+              key={dateStr}
+              className={`cal-day ${bgClass} ${isSelected ? "selected" : ""}`}
+              onClick={() => setSelectedDate(date)}
+            >
+              {format(date, "d")}
             </div>
           );
         })}
       </div>
     );
-  };
-
-  const handleExport = () => {
-    const data = {
-      habits: JSON.parse(localStorage.getItem('discipline-habits') || '[]'),
-      xp: localStorage.getItem('discipline-xp') || '0',
-      notes: JSON.parse(localStorage.getItem('discipline-notes') || '[]'),
-      schedule: JSON.parse(localStorage.getItem('discipline-schedule') || '[]')
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `discipline_backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.habits && window.confirm("Overwrite current data?")) {
-            localStorage.setItem('discipline-habits', JSON.stringify(data.habits));
-            localStorage.setItem('discipline-xp', data.xp || '0');
-            localStorage.setItem('discipline-notes', JSON.stringify(data.notes || []));
-            localStorage.setItem('discipline-schedule', JSON.stringify(data.schedule || []));
-            window.location.reload();
-        }
-      } catch (err) { alert("Error reading file."); }
-    };
-    reader.readAsText(file);
-  };
+  }, [habits, currentMonth, selectedDate]);
 
   return (
-    <aside className="sidebar">
+    <div className="sidebar">
       <div className="brand">
-        <h1>DISCIPLINE.</h1>
-        <div className="user-profile"><User size={16} /> <span>User</span></div>
-      </div>
-
-      <nav id="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '1.5rem', marginTop: '1rem' }}>
-        <button onClick={() => setView('tracker')} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: currentView === 'tracker' ? '#27272a' : 'transparent', color: currentView === 'tracker' ? '#fff' : '#71717a', fontWeight: '600' }}>
-          <List size={18} /> Tracker
-        </button>
-        <button onClick={() => setView('schedule')} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: currentView === 'schedule' ? '#27272a' : 'transparent', color: currentView === 'schedule' ? '#fff' : '#71717a', fontWeight: '600' }}>
-          <Clock size={18} /> Schedule
-        </button>
-        <button onClick={() => setView('notes')} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: currentView === 'notes' ? '#27272a' : 'transparent', color: currentView === 'notes' ? '#fff' : '#71717a', fontWeight: '600' }}>
-          <PenTool size={18} /> Notes
-        </button>
-      </nav>
-
-      <div id="xp-card" className="level-card">
-         <div className="level-header"><Trophy size={16} className="text-yellow-500" /><span>Level {level}</span></div>
-         <div className="xp-bar-bg"><div className="xp-bar-fill" style={{width: `${(xp%100)}%`}}></div></div>
-         <p className="xp-details">{xp % 100} / 100 XP</p>
-      </div>
-
-      <div className="motivation-panel">
-        <h3>Daily Stoic</h3>
-        <p className="quote-text">"{QUOTES[quoteIndex]}"</p>
-        <div className="quote-timer-line"></div>
-      </div>
-      
-      {/* ADDED ID */}
-      <div id="calendar-heatmap" className="calendar-wrapper">
-        <div className="cal-nav">
-           <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))}><ChevronLeft size={16}/></button>
-           <span>{format(selectedDate, 'MMMM yyyy')}</span>
-           <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))}><ChevronRight size={16}/></button>
+        <h1>TrackDaily.com</h1>
+        <div className="user-profile">
+          <User size={17} />
+          <span>User</span>
         </div>
-        {renderCalendar()}
+      </div>
+      <div className="level-card">
+        <div className="level-header">
+          <Shield size={16} fill="#fbbf24" color="#fbbf24" />
+          <span>Level {level}</span>
+        </div>
+        <div className="xp-bar-bg">
+          <div className="xp-bar-fill" style={{ width: `${progress}%` }}></div>
+        </div>
+      </div>
+      <div className="calendar-wrapper">
+        <div className="cal-nav">
+          <button onClick={handlePrevMonth}>
+            <ChevronLeft size={19} />
+          </button>
+          <span>{format(currentMonth, "MMMM yyyy")}</span>
+          <button onClick={handleNextMonth}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+        {calendarGrid}
       </div>
 
-      {/* ADDED ID */}
-      <div id="stats-carousel" className="chart-section" onClick={() => setActiveGraph(prev => prev === 0 ? 1 : 0)} style={{ cursor: 'pointer', transition: 'all 0.3s' }} title="Click to switch graph">
-        <div className="cal-nav">
-           <span style={{display:'flex', gap:'8px', alignItems:'center'}}>
-             {activeGraph === 0 ? <Activity size={16}/> : <BarChart2 size={16}/>}
-             {activeGraph === 0 ? "Trend (Line)" : "Volume (Bar)"}
-           </span>
-        </div>
-        <div style={{ width: '100%', height: 100 }}>
-          <ResponsiveContainer>
-            {activeGraph === 0 ? (
-              <LineChart data={chartData}>
-                <XAxis dataKey="day" stroke="#52525b" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} cursor={{stroke: '#27272a'}} />
-                <Line type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={3} dot={{r: 3, fill: '#09090b', strokeWidth: 2, stroke:'#22c55e'}} activeDot={{r: 5, fill: '#22c55e'}} />
-              </LineChart>
+      {/* Manual Switch: Click anywhere on the chart to flip between Line and Bar */}
+      <div
+        className="chart-container"
+        onClick={() => setShowLineChart(!showLineChart)}
+        style={{ cursor: "pointer", position: "relative" }}
+        title="Click to switch view"
+      >
+        <ResponsiveContainer width="100%" height={160}>
+          {showLineChart ? (
+            <LineChart
+              data={last7Days}
+              margin={{ top: 15, right: 20, left: 10, bottom: 0 }}
+            >
+              <YAxis hide={true} domain={[0, "dataMax + 1"]} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: "#71717a" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "#18181b",
+                  border: "1px solid #27272a",
+                  borderRadius: "8px",
+                }}
+                itemStyle={{
+                  color: "#22c55e",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+                labelStyle={{ display: "none" }}
+                formatter={(value) => [`${value} Goals`, "Hit"]}
+              />
+              <Line
+                type="monotone"
+                dataKey="completed"
+                stroke="#22c55e"
+                strokeWidth={3}
+                dot={{ r: 4, fill: "#000", stroke: "#22c55e", strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: "#22c55e" }}
+              />
+            </LineChart>
+          ) : (
+            <BarChart
+              data={last7Days}
+              margin={{ top: 15, right: 20, left: 10, bottom: 0 }}
+            >
+              <YAxis hide={true} domain={[0, "dataMax + 1"]} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: "#71717a" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "#18181b",
+                  border: "1px solid #27272a",
+                  borderRadius: "8px",
+                }}
+                itemStyle={{
+                  color: "#fbbf24",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+                labelStyle={{ display: "none" }}
+                cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                formatter={(value) => [`${value} Goals`, "Hit"]}
+              />
+              <Bar
+                dataKey="completed"
+                fill="#fbbf24"
+                radius={[4, 4, 0, 0]}
+                barSize={20}
+              />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+
+      <div className="utility-bar-container">
+        <div className="utility-glass-dock">
+          <button className="util-icon-btn" onClick={toggleMute}>
+            {isMuted ? (
+              <VolumeX size={18} color="#ef4444" />
             ) : (
-              <BarChart data={chartData}>
-                <XAxis dataKey="day" stroke="#52525b" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
-                <Bar dataKey="count" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              <Volume2 size={18} />
             )}
-          </ResponsiveContainer>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '10px' }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeGraph === 0 ? '#fff' : '#3f3f46' }}></div>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeGraph === 1 ? '#fff' : '#3f3f46' }}></div>
+          </button>
+          <div className="util-separator" />
+          <button
+            className="util-icon-btn"
+            onClick={() => exportUserData({ habits, xp, notes, reminders })}
+          >
+            <Download size={18} />
+          </button>
+          <label className="util-icon-btn">
+            <Upload size={18} />
+            <input
+              type="file"
+              className="hidden-input"
+              accept=".json"
+              onChange={(e) => importUserData(e.target.files[0], onImportData)}
+            />
+          </label>
         </div>
       </div>
-
-      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '10px' }}>
-        <button onClick={handleExport} title="Backup" style={{ flex: 1, padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '8px', color: '#71717a', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><Download size={16} /></button>
-        <button onClick={() => fileInputRef.current.click()} title="Restore" style={{ flex: 1, padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '8px', color: '#71717a', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><Upload size={16} /></button>
-        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".json" onChange={handleImport} />
-        <button onClick={() => { Notification.requestPermission().then(perm => { if(perm === 'granted') alert("Notifications Active! 🔔"); }); }} title="Notifications" style={{ flex: 1, padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '8px', color: '#fbbf24', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><Bell size={16} /></button>
-      </div>
-    </aside>
+    </div>
   );
 };
 

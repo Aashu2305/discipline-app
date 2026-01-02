@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PenTool, Trash2, Plus } from 'lucide-react';
-
+import './Notebook.css'; 
+// ... rest of your Notebook code
 const Notebook = ({ notes, onAdd, onDelete, onUpdate, setView }) => {
   const [activeNoteId, setActiveNoteId] = useState(notes.length > 0 ? notes[0].id : null);
   const activeNote = notes.find(n => n.id === activeNoteId) || (notes.length > 0 ? notes[0] : null);
