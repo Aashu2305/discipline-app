@@ -100,8 +100,14 @@ const Sidebar = ({
     });
   }, [habits]);
 
-  const level = Math.floor(xp / 100);
-  const progress = xp % 100;
+  // --- REAL-WORLD SCALING LOGIC (QUADRATIC) ---
+  const currentLevel = Math.floor(Math.sqrt(xp / 200)) + 1;
+  const xpStartOfLevel = Math.pow(currentLevel - 1, 2) * 200;
+  const xpForNextLevel = Math.pow(currentLevel, 2) * 200;
+  
+  const progressInLevel = xp - xpStartOfLevel;
+  const totalRequiredForLevel = xpForNextLevel - xpStartOfLevel;
+  const progressPercentage = Math.min(Math.max((progressInLevel / totalRequiredForLevel) * 100, 0), 100);
 
   const calendarGrid = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -194,10 +200,14 @@ const Sidebar = ({
       <div className="level-card">
         <div className="level-header">
           <Shield size={16} fill="#fbbf24" color="#fbbf24" />
-          <span>Level {level}</span>
+          <span style={{ letterSpacing: '2px' }}>RANK: LEVEL {currentLevel}</span>
         </div>
         <div className="xp-bar-bg">
-          <div className="xp-bar-fill" style={{ width: `${progress}%` }}></div>
+          <div className="xp-bar-fill" style={{ width: `${progressPercentage}%` }}></div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.6rem', color: '#52525b', fontFamily: 'JetBrains Mono' }}>
+          <span>{xp} XP</span>
+          <span>NEXT: {xpForNextLevel} XP</span>
         </div>
       </div>
       <div className="calendar-wrapper">
@@ -213,7 +223,6 @@ const Sidebar = ({
         {calendarGrid}
       </div>
 
-      {/* Manual Switch: Click anywhere on the chart to flip between Line and Bar */}
       <div
         className="chart-container"
         onClick={() => setShowLineChart(!showLineChart)}

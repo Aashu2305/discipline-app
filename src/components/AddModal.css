@@ -1,0 +1,28 @@
+.mission-toggle-container {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(251, 191, 36, 0.05);
+  border: 1px dashed #fbbf24;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mission-btn {
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #71717a;
+  padding: 6px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.mission-btn.active {
+  background: #fbbf24;
+  color: #000;
+  border-color: #fbbf24;
+}
